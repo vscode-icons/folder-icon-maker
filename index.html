@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>vscode-icons folder maker</title>
+    <meta
+      name="description"
+      content="Make vscode-icons folders from your file icons, closed and opened."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c09553' d='M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21z'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+      defer
+    ></script>
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="titlebar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path
+            class="brand-folder"
+            d="M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 4.2h-8.2l1.1-2.1h7.1z"
+          />
+          <rect class="brand-guide" x="10" y="10" width="21" height="21" />
+        </svg>
+        <span>vscode-icons folder maker</span>
+      </div>
+      <button type="button" class="btn ghost" id="themeBtn">Light theme</button>
+    </header>
+
+    <section class="hero">
+      <div class="hero-text">
+        <h1>Make vscode-icons folders from your file icons</h1>
+        <p class="lede">
+          Add a file icon and get its folder back, closed and opened. The icon
+          becomes the badge in the standard spot, and the folder takes its color
+          from the icon.
+        </p>
+
+        <label
+          class="drop"
+          id="drop"
+          for="file"
+          tabindex="0"
+          aria-label="Add file icons"
+        >
+          <span class="drop-lead">Drop file icon SVGs here</span>
+          <span class="drop-sub"
+            ><code>file_type_light_*</code> icons make the light theme
+            folder.</span
+          >
+          <span class="row">
+            <span class="btn primary">Choose files</span>
+            <button type="button" class="btn" id="pasteToggle">
+              Paste SVG code
+            </button>
+            <button type="button" class="btn" id="sampleBtn">
+              Try a sample
+            </button>
+          </span>
+          <input type="file" id="file" accept=".svg,image/svg+xml" multiple />
+        </label>
+
+        <div class="paste" id="paste">
+          <textarea
+            id="pasteText"
+            placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">…</svg>'
+            aria-label="SVG code"
+            spellcheck="false"
+          ></textarea>
+          <div class="row">
+            <input
+              class="field"
+              id="pasteName"
+              placeholder="Folder name, e.g. cypress"
+              aria-label="Folder name"
+            />
+            <button type="button" class="btn primary" id="pasteAdd">
+              Make folder
+            </button>
+            <span class="err" id="pasteErr" role="alert"></span>
+          </div>
+        </div>
+      </div>
+
+      <figure class="specimen">
+        <svg
+          class="sheet"
+          viewBox="-3 -3 37 37"
+          role="img"
+          aria-labelledby="specName"
+        >
+          <defs>
+            <pattern
+              id="grid1"
+              width="1"
+              height="1"
+              patternUnits="userSpaceOnUse"
+            >
+              <path class="grid-fine" d="M1 0H0V1" />
+            </pattern>
+            <pattern
+              id="grid8"
+              width="8"
+              height="8"
+              patternUnits="userSpaceOnUse"
+            >
+              <rect width="8" height="8" fill="url(#grid1)" />
+              <path class="grid-major" d="M8 0H0V8" />
+            </pattern>
+          </defs>
+          <rect class="grid-bg" width="32" height="32" />
+          <rect width="32" height="32" fill="url(#grid8)" />
+          <rect class="grid-edge" width="32" height="32" />
+          <g class="axis">
+            <text x="0" y="-1">0</text>
+            <text x="16" y="-1">16</text>
+            <text x="32" y="-1">32</text>
+            <text x="-1" y="0.4" class="v">0</text>
+            <text x="-1" y="16.4" class="v">16</text>
+            <text x="-1" y="32.4" class="v">32</text>
+          </g>
+          <path
+            id="specGhost"
+            class="ghost-folder"
+            d="M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 4.2h-8.2l1.1-2.1h7.1z"
+          />
+          <image id="specImg" width="32" height="32" />
+          <g class="guides">
+            <rect id="miniBox" x="10" y="10" width="21" height="21" />
+            <circle id="specCircle" cx="20.5" cy="20.5" r="10.5" />
+            <path id="specCross" d="M19.5 20.5h2m-1-1v2" />
+          </g>
+        </svg>
+        <figcaption>
+          <code id="specName">No folder yet</code>
+          <div class="ctl">
+            <label for="size">Size</label
+            ><input
+              type="range"
+              id="size"
+              min="12"
+              max="26"
+              step="0.5"
+              value="21"
+            /><output id="sizeOut">21</output>
+          </div>
+          <div class="ctl">
+            <label for="cx">Center x</label
+            ><input
+              type="range"
+              id="cx"
+              min="14"
+              max="22"
+              step="0.5"
+              value="20.5"
+            /><output id="cxOut">20.5</output>
+          </div>
+          <div class="ctl">
+            <label for="cy">Center y</label
+            ><input
+              type="range"
+              id="cy"
+              min="14"
+              max="22"
+              step="0.5"
+              value="20.5"
+            /><output id="cyOut">20.5</output>
+          </div>
+          <div class="ctl">
+            <label for="align">Align</label
+            ><select class="field" id="align">
+              <option value="br" selected>Bottom right of the box</option>
+              <option value="center">Center of the box</option>
+            </select>
+          </div>
+          <p class="hint">
+            The default 21×21 box from 10 to 31 is where vscode-icons puts
+            folder badges.
+            <button type="button" class="linkbtn" id="resetPlace">
+              Reset to default
+            </button>
+          </p>
+        </figcaption>
+      </figure>
+    </section>
+
+    <div class="workbench">
+      <main class="list" aria-labelledby="listTitle">
+        <div class="section-head">
+          <h2 id="listTitle">Folders</h2>
+          <div class="actions">
+            <button type="button" class="btn small" id="clearAll" disabled>
+              Remove all
+            </button>
+            <button
+              type="button"
+              class="btn small primary"
+              id="zipAll"
+              disabled
+            >
+              Download all (.zip)
+            </button>
+          </div>
+        </div>
+        <div id="items">
+          <p class="empty">
+            No folders yet. Drop file icons above, paste SVG code, or try the
+            sample.
+          </p>
+        </div>
+      </main>
+
+      <aside class="side" aria-labelledby="exTitle">
+        <div class="section-head">
+          <h2 id="exTitle">In the explorer</h2>
+          <label class="check"><input type="checkbox" id="zoom" /> 2×</label>
+        </div>
+        <div class="explorers" id="explorers">
+          <div class="explorer dark">
+            <div class="bar">Dark theme</div>
+            <div class="rows" id="exDark"></div>
+          </div>
+          <div class="explorer light">
+            <div class="bar">Light theme</div>
+            <div class="rows" id="exLight"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
