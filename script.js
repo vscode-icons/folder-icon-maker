@@ -25,8 +25,9 @@
   // vscode-icons default_file, shown under each folder in the explorer preview
   const DEFAULT_FILE =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#c5c5c5" d="M20.414,2H5V30H27V8.586ZM7,28V4H19v6h6V28Z"/></svg>';
+  // vscode-icons logo
   const SAMPLE =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#2a9d8f" d="M16 2.5 28 9.25v13.5L16 29.5 4 22.75V9.25z"/><path fill="#fff" d="m17.5 7-7 10.5h5L14 25l7.5-11h-5.2z"/></svg>';
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 128 128"><defs><linearGradient id="a" x1="24.704" y1="32.447" x2="65.85" y2="32.447" gradientTransform="matrix(1, 0, 0, -1, -3.643, 119.837)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#007acc"/><stop offset="1" stop-opacity="0"/></linearGradient><linearGradient id="b" x1="24.704" y1="38.432" x2="65.85" y2="38.432" xlink:href="#a"/><linearGradient id="c" x1="24.704" y1="48.801" x2="65.85" y2="48.801" xlink:href="#a"/></defs><title>logo</title><path d="M49.335,100.26a12.87,12.87,0,1,1,9.1-3.77A12.87,12.87,0,0,1,49.335,100.26Z" style="fill:#062c3e;stroke-width:1.2000000476837158px;stroke:url(#a)"/><path d="M30.775,91.12a9.715,9.715,0,1,1,6.869-2.845A9.715,9.715,0,0,1,30.775,91.12Z" style="fill:#062c3e;stroke-width:1.2000000476837158px;stroke:url(#b)"/><path d="M44.118,86.16a15.124,15.124,0,1,1,10.694-4.43A15.124,15.124,0,0,1,44.118,86.16Z" style="fill:#062c3e;stroke-width:1.2000000476837158px;stroke:url(#c)"/><path d="M87.728,31.74,65.482,53.727l-12.55-9.451L38.069,49.233l15.971,15.8L38.069,80.826l14.863,4.963,12.55-9.456L87.728,98.326l19.212-8.161V39.9Zm1.018,45.293L72.44,64.988h.022L88.746,53.033Z" style="fill:#020e15"/><path d="M83.728,27.74,61.482,49.727l-12.55-9.451L34.069,45.233l15.971,15.8L34.069,76.826l14.863,4.963,12.55-9.456L83.728,94.326l19.212-8.161V35.9Zm1.018,45.293L68.44,60.988h.022L84.746,49.033Z" style="fill:#083a53"/><path d="M61.88,65.4,48.114,75.771,42.44,73.877l14-13.844-14-13.846,5.674-1.894L61.88,54.661l22.866-22.6L98.44,37.877v44.31L84.746,88.005Zm7.134-5.37L84.74,71.879V48.185Z" style="fill:#007acc"/></svg>';
 
   const state = {
     icons: [],
@@ -818,7 +819,7 @@
   });
   $("sampleBtn").addEventListener("click", async () => {
     try {
-      await addIcon(SAMPLE, "sample.svg");
+      await addIcon(SAMPLE, "vscode-icons.svg");
       render();
     } catch (e) {
       toast(e.message);
