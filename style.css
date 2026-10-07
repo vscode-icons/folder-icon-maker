@@ -83,6 +83,19 @@ textarea {
 .brand-folder {
   fill: var(--folder);
 }
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.repo {
+  gap: 8px;
+  text-decoration: none;
+}
+.repo svg {
+  width: 20px;
+  height: 20px;
+}
 .brand-guide {
   fill: none;
   stroke: var(--guide);
