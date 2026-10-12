@@ -424,6 +424,709 @@
     });
   }
 
+  // ---------- flattening ----------
+  // the badge's shapes are moved into folder coordinates instead of sitting in a nested <svg>
+  const ID = [1, 0, 0, 1, 0, 0];
+  const CONTAINERS = ["g", "a", "svg"];
+  // never drawn directly, copied as they are
+  const UNRENDERED = [
+    "linearGradient",
+    "radialGradient",
+    "clipPath",
+    "mask",
+    "pattern",
+    "filter",
+    "symbol",
+    "marker",
+    "style",
+    "defs",
+  ];
+  const LENGTHS = ["stroke-width", "stroke-dasharray", "stroke-dashoffset"];
+  const INHERITED = [
+    "fill",
+    "fill-opacity",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-miterlimit",
+    "stroke-opacity",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "clip-rule",
+    "color",
+    "visibility",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "text-anchor",
+    "paint-order",
+    "marker",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+  ];
+  const GEOMETRY = {
+    path: ["d"],
+    rect: ["x", "y", "width", "height", "rx", "ry"],
+    circle: ["cx", "cy", "r"],
+    ellipse: ["cx", "cy", "rx", "ry"],
+    line: ["x1", "y1", "x2", "y2"],
+    polyline: ["points"],
+    polygon: ["points"],
+  };
+  // elements using these keep their transform
+  const NO_BAKE = [
+    "clip-path",
+    "mask",
+    "filter",
+    "marker",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+  ];
+
+  const mul = (m, n) => [
+    m[0] * n[0] + m[2] * n[1],
+    m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3],
+    m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4],
+    m[1] * n[4] + m[3] * n[5] + m[5],
+  ];
+  const tol = (m) =>
+    1e-6 *
+    (Math.abs(m[0]) + Math.abs(m[1]) + Math.abs(m[2]) + Math.abs(m[3]));
+  // uniform scale and rotation only
+  const similar = (m) =>
+    (Math.abs(m[0] - m[3]) <= tol(m) && Math.abs(m[1] + m[2]) <= tol(m)) ||
+    (Math.abs(m[0] + m[3]) <= tol(m) && Math.abs(m[1] - m[2]) <= tol(m));
+  const axisAligned = (m) =>
+    Math.abs(m[1]) <= tol(m) && Math.abs(m[2]) <= tol(m) && m[0] > 0 && m[3] > 0;
+  const matrix = (m) =>
+    `matrix(${m.map((n) => String(+n.toFixed(6))).join(" ")})`;
+  const has = (v) => v != null && v.trim() !== "none";
+
+  function parseTransform(t) {
+    let m = ID;
+    const re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g;
+    let r;
+    while (t && (r = re.exec(t))) {
+      const v = r[2].trim().split(/[\s,]+/).filter(Boolean).map(Number);
+      const rad = ((v[0] || 0) * Math.PI) / 180;
+      let n = ID;
+      if (r[1] === "matrix" && v.length === 6) n = v;
+      if (r[1] === "translate") n = [1, 0, 0, 1, v[0] || 0, v[1] || 0];
+      if (r[1] === "scale") n = [v[0] ?? 1, 0, 0, v[1] ?? v[0] ?? 1, 0, 0];
+      if (r[1] === "rotate") {
+        const c = Math.cos(rad),
+          s = Math.sin(rad),
+          x = v[1] || 0,
+          y = v[2] || 0;
+        n = [c, s, -s, c, x - c * x + s * y, y - s * x - c * y];
+      }
+      if (r[1] === "skewX") n = [1, 0, Math.tan(rad), 1, 0, 0];
+      if (r[1] === "skewY") n = [1, Math.tan(rad), 0, 1, 0, 0];
+      m = mul(m, n.some(isNaN) ? ID : n);
+    }
+    return m;
+  }
+
+  function parseStyle(s) {
+    const o = {};
+    (s || "").split(";").forEach((d) => {
+      const i = d.indexOf(":");
+      if (i > 0) o[d.slice(0, i).trim().toLowerCase()] = d.slice(i + 1).trim();
+    });
+    return o;
+  }
+
+  // parse path data into absolute segments
+  function parsePath(d) {
+    const segs = [],
+      num = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/y;
+    let i = 0,
+      cmd = "",
+      x = 0,
+      y = 0,
+      sx = 0,
+      sy = 0;
+    const skip = () => {
+      while (i < d.length && /[\s,]/.test(d[i])) i++;
+    };
+    const n = () => {
+      skip();
+      num.lastIndex = i;
+      const m = num.exec(d);
+      if (!m) throw 0;
+      i = num.lastIndex;
+      return +m[0];
+    };
+    const flag = () => {
+      skip();
+      const c = d[i++];
+      if (c !== "0" && c !== "1") throw 0;
+      return +c;
+    };
+    try {
+      for (;;) {
+        skip();
+        if (i >= d.length) break;
+        if (/[a-z]/i.test(d[i])) cmd = d[i++];
+        else if (!cmd) throw 0;
+        const rel = cmd === cmd.toLowerCase(),
+          ox = rel ? x : 0,
+          oy = rel ? y : 0,
+          last = segs.at(-1);
+        switch (cmd.toUpperCase()) {
+          case "M":
+            x = sx = ox + n();
+            y = sy = oy + n();
+            segs.push(["M", x, y]);
+            cmd = rel ? "l" : "L";
+            break;
+          case "L":
+            x = ox + n();
+            y = oy + n();
+            segs.push(["L", x, y]);
+            break;
+          case "H":
+            x = ox + n();
+            segs.push(["L", x, y]);
+            break;
+          case "V":
+            y = oy + n();
+            segs.push(["L", x, y]);
+            break;
+          case "C": {
+            const c = [ox + n(), oy + n(), ox + n(), oy + n()];
+            x = ox + n();
+            y = oy + n();
+            segs.push(["C", ...c, x, y]);
+            break;
+          }
+          case "S": {
+            const r = last && last[0] === "C";
+            const c = [r ? 2 * x - last[3] : x, r ? 2 * y - last[4] : y];
+            c.push(ox + n(), oy + n());
+            x = ox + n();
+            y = oy + n();
+            segs.push(["C", ...c, x, y]);
+            break;
+          }
+          case "Q": {
+            const c = [ox + n(), oy + n()];
+            x = ox + n();
+            y = oy + n();
+            segs.push(["Q", ...c, x, y]);
+            break;
+          }
+          case "T": {
+            const r = last && last[0] === "Q";
+            const c = [r ? 2 * x - last[1] : x, r ? 2 * y - last[2] : y];
+            x = ox + n();
+            y = oy + n();
+            segs.push(["Q", ...c, x, y]);
+            break;
+          }
+          case "A": {
+            const a = [n(), n(), n(), flag(), flag()];
+            x = ox + n();
+            y = oy + n();
+            segs.push(["A", ...a, x, y]);
+            break;
+          }
+          case "Z":
+            segs.push(["Z"]);
+            x = sx;
+            y = sy;
+            cmd = "";
+            break;
+          default:
+            throw 0;
+        }
+      }
+    } catch (e) {}
+    return segs;
+  }
+
+  // convert basic shapes to path segments
+  function shapeSegs(el) {
+    const tag = el.localName;
+    if (tag === "path") return parsePath(el.getAttribute("d") || "");
+    const n = (k) => {
+      const v = (el.getAttribute(k) ?? "0").trim().replace(/px$/i, "");
+      return /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(v) ? +v : NaN;
+    };
+    if (tag === "polyline" || tag === "polygon") {
+      const p = (el.getAttribute("points") || "")
+        .trim()
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .map(Number);
+      if (p.some(isNaN)) return null;
+      const segs = [];
+      for (let i = 0; i + 1 < p.length; i += 2)
+        segs.push([i ? "L" : "M", p[i], p[i + 1]]);
+      if (tag === "polygon" && segs.length) segs.push(["Z"]);
+      return segs;
+    }
+    if (tag === "line") {
+      const v = [n("x1"), n("y1"), n("x2"), n("y2")];
+      return v.some(isNaN)
+        ? null
+        : [
+            ["M", v[0], v[1]],
+            ["L", v[2], v[3]],
+          ];
+    }
+    if (tag === "circle" || tag === "ellipse") {
+      const cx = n("cx"),
+        cy = n("cy"),
+        rx = tag === "circle" ? n("r") : n("rx"),
+        ry = tag === "circle" ? rx : n("ry");
+      if ([cx, cy, rx, ry].some(isNaN)) return null;
+      if (rx <= 0 || ry <= 0) return [];
+      return [
+        ["M", cx - rx, cy],
+        ["A", rx, ry, 0, 1, 0, cx + rx, cy],
+        ["A", rx, ry, 0, 1, 0, cx - rx, cy],
+        ["Z"],
+      ];
+    }
+    if (tag === "rect") {
+      const x = n("x"),
+        y = n("y"),
+        w = n("width"),
+        h = n("height");
+      let rx = el.hasAttribute("rx") ? n("rx") : null,
+        ry = el.hasAttribute("ry") ? n("ry") : null;
+      rx ??= ry ?? 0;
+      ry ??= rx;
+      if ([x, y, w, h, rx, ry].some(isNaN)) return null;
+      if (w <= 0 || h <= 0) return [];
+      rx = Math.min(rx, w / 2);
+      ry = Math.min(ry, h / 2);
+      if (rx <= 0 || ry <= 0)
+        return [
+          ["M", x, y],
+          ["L", x + w, y],
+          ["L", x + w, y + h],
+          ["L", x, y + h],
+          ["Z"],
+        ];
+      const a = (ex, ey) => ["A", rx, ry, 0, 0, 1, ex, ey];
+      // sides are left out when the corners already meet
+      return [
+        ["M", x + rx, y],
+        w > 2 * rx && ["L", x + w - rx, y],
+        a(x + w, y + ry),
+        h > 2 * ry && ["L", x + w, y + h - ry],
+        a(x + w - rx, y + h),
+        w > 2 * rx && ["L", x + rx, y + h],
+        a(x, y + h - ry),
+        h > 2 * ry && ["L", x, y + ry],
+        a(x + rx, y),
+        ["Z"],
+      ].filter(Boolean);
+    }
+    return null;
+  }
+
+  // transform arc radii and rotation
+  function arcThrough(rx, ry, rot, m) {
+    const t = (rot * Math.PI) / 180,
+      c = Math.cos(t),
+      s = Math.sin(t);
+    const p = (m[0] * c + m[2] * s) * rx,
+      q = (m[2] * c - m[0] * s) * ry,
+      r = (m[1] * c + m[3] * s) * rx,
+      u = (m[3] * c - m[1] * s) * ry;
+    const E = (p + u) / 2,
+      F = (p - u) / 2,
+      G = (r + q) / 2,
+      H = (r - q) / 2;
+    const Q = Math.hypot(E, H),
+      R = Math.hypot(F, G);
+    const phi = (Math.atan2(H, E) + Math.atan2(G, F)) / 2;
+    return [Q + R, Math.abs(Q - R), (phi * 180) / Math.PI];
+  }
+
+  function transformSegs(segs, m) {
+    const flip = m[0] * m[3] - m[1] * m[2] < 0;
+    return segs.map((s) => {
+      if (s[0] === "Z") return s;
+      if (s[0] === "A") {
+        const [, rx, ry, rot, large, sweep, x, y] = s;
+        return [
+          "A",
+          ...(rx && ry ? arcThrough(rx, ry, rot, m) : [rx, ry, rot]),
+          large,
+          flip ? 1 - sweep : sweep,
+          m[0] * x + m[2] * y + m[4],
+          m[1] * x + m[3] * y + m[5],
+        ];
+      }
+      const out = [s[0]];
+      for (let i = 1; i < s.length; i += 2)
+        out.push(
+          m[0] * s[i] + m[2] * s[i + 1] + m[4],
+          m[1] * s[i] + m[3] * s[i + 1] + m[5],
+        );
+      return out;
+    });
+  }
+
+  // segments back to path data
+  function pathData(segs) {
+    const R = (n) => +n.toFixed(2);
+    const num = (n) => {
+      const s = String(+n.toFixed(3));
+      return s === "-0" ? "0" : s.replace(/^(-?)0\./, "$1.");
+    };
+    // how far apart two points are, measured in arc radii (1 means a half ellipse)
+    const span = (rx, ry, rot, ax, ay, bx, by) => {
+      const t = (rot * Math.PI) / 180,
+        dx = (ax - bx) / 2,
+        dy = (ay - by) / 2;
+      const u = Math.cos(t) * dx + Math.sin(t) * dy,
+        v = Math.cos(t) * dy - Math.sin(t) * dx;
+      return (u * u) / (rx * rx) + (v * v) / (ry * ry);
+    };
+    let out = "",
+      last = "",
+      prev = null,
+      cx = 0,
+      cy = 0,
+      sx = 0,
+      sy = 0,
+      fx = 0,
+      fy = 0,
+      fsx = 0,
+      fsy = 0;
+    const enc = (L, vals) => {
+      const implicit =
+        (L === last && !/[mz]/i.test(L)) ||
+        (last === "M" && L === "L") ||
+        (last === "m" && L === "l");
+      let s = implicit ? "" : L,
+        p = implicit ? prev : null;
+      vals.forEach((v) => {
+        const t = num(v);
+        if (p !== null && t[0] !== "-" && !(t[0] === "." && p.includes(".")))
+          s += " ";
+        s += t;
+        p = t;
+      });
+      return [s, L, p];
+    };
+    const put = (A, a, r) => {
+      const x = enc(A, a),
+        y = enc(A.toLowerCase(), r);
+      [out, last, prev] = [
+        out + (y[0].length <= x[0].length ? y : x)[0],
+        ...(y[0].length <= x[0].length ? y : x).slice(1),
+      ];
+    };
+    for (const s of segs) {
+      if (s[0] === "Z") {
+        out += "z";
+        last = "z";
+        prev = null;
+        cx = sx;
+        cy = sy;
+        fx = fsx;
+        fy = fsy;
+        continue;
+      }
+      const pts = s.slice(1).map(R),
+        X = pts.at(-2),
+        Y = pts.at(-1);
+      const rel = (v, i) => R(v - (i % 2 ? cy : cx));
+      if (s[0] === "A") {
+        let [, rx, ry] = s;
+        const [, , rot, la, sw] = pts;
+        // rounded end points change how much of the ellipse the arc covers, so the radii are fitted to them.
+        // A half ellipse gets radii a bit too small, which the browser stretches to fit exactly.
+        if (rx && ry) {
+          const before = span(rx, ry, s[3], fx, fy, s[6], s[7]),
+            after = span(rx, ry, rot, cx, cy, X, Y);
+          if (before && after) {
+            const half = before > 0.999,
+              k = Math.sqrt(half ? after : after / before);
+            const r = (v) =>
+              half ? Math.floor(v * k * 1000) / 1000 : +(v * k).toFixed(3);
+            if (r(rx) > 0 && r(ry) > 0) [rx, ry] = [r(rx), r(ry)];
+          }
+        }
+        put(
+          "A",
+          [rx, ry, rot, la, sw, X, Y],
+          [rx, ry, rot, la, sw, R(X - cx), R(Y - cy)],
+        );
+      } else if (s[0] === "L" && Y === cy && X !== cx) put("H", [X], [R(X - cx)]);
+      else if (s[0] === "L" && X === cx && Y !== cy) put("V", [Y], [R(Y - cy)]);
+      else put(s[0], pts, pts.map(rel));
+      cx = X;
+      cy = Y;
+      fx = s.at(-2);
+      fy = s.at(-1);
+      if (s[0] === "M") {
+        sx = X;
+        sy = Y;
+        fsx = fx;
+        fsy = fy;
+      }
+    }
+    return out;
+  }
+
+  // viewBox transform of a nested <svg>
+  function viewport(el) {
+    const n = (k, d) => {
+      const v = el.getAttribute(k);
+      return v == null ? d : /^[-+.\d]+(px)?$/i.test(v.trim()) ? parseFloat(v) : NaN;
+    };
+    const x = n("x", 0),
+      y = n("y", 0);
+    const par = (el.getAttribute("preserveAspectRatio") || "xMidYMid").trim();
+    const vb = (el.getAttribute("viewBox") || "")
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    if (isNaN(x) || isNaN(y)) return null;
+    if (vb.length !== 4) return [1, 0, 0, 1, x, y];
+    const w = n("width", NaN),
+      h = n("height", NaN);
+    if (
+      vb.some(isNaN) ||
+      vb[2] <= 0 ||
+      vb[3] <= 0 ||
+      !(w > 0 && h > 0) ||
+      !/^xMidYMid( meet)?$/.test(par)
+    )
+      return null;
+    const s = Math.min(w / vb[2], h / vb[3]);
+    return [
+      s,
+      0,
+      0,
+      s,
+      x + (w - vb[2] * s) / 2 - vb[0] * s,
+      y + (h - vb[3] * s) / 2 - vb[1] * s,
+    ];
+  }
+
+  function flatten(icon, m) {
+    const doc = (icon.doc ||= new DOMParser().parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg"${icon.usesXlink ? ' xmlns:xlink="http://www.w3.org/1999/xlink"' : ""}>${icon.inner}</svg>`,
+      "image/svg+xml",
+    ));
+    if (doc.querySelector("parsererror")) return null;
+    const ser = new XMLSerializer();
+    const out = (node) =>
+      ser
+        .serializeToString(node)
+        .replace(/ xmlns(:xlink)?="[^"]*"/g, "");
+    const byId = (id) => doc.querySelector(`[id="${CSS.escape(id)}"]`);
+    const TOKEN = "\u0000clones\u0000";
+    const clones = {},
+      cloned = [];
+    let defsSeen = false;
+    const styled = !!doc.querySelector("style");
+
+    // copy userSpaceOnUse gradients with the transform applied
+    function paint(v, mm) {
+      const r = /url\(\s*['"]?#([^'")\s]+)['"]?\s*\)/.exec(v);
+      if (!r) return v;
+      const el = byId(r[1]);
+      if (!el || !/Gradient$/.test(el.localName)) return null;
+      let units = null,
+        gt = null,
+        cur = el;
+      for (let k = 0; cur && k < 10; k++) {
+        units ??= cur.getAttribute("gradientUnits");
+        gt ??= cur.getAttribute("gradientTransform");
+        const h = cur.getAttribute("href") || cur.getAttribute("xlink:href");
+        cur = h && h.startsWith("#") ? byId(h.slice(1)) : null;
+      }
+      if (units !== "userSpaceOnUse") return axisAligned(mm) ? v : null;
+      const key = r[1] + "|" + mm.join(",");
+      if (!clones[key]) {
+        const c = el.cloneNode(true);
+        clones[key] = c.id = `${r[1]}-f${cloned.length + 1}`;
+        c.setAttribute(
+          "gradientTransform",
+          matrix(mul(mm, parseTransform(gt))),
+        );
+        cloned.push(out(c));
+      }
+      return v.replace(r[0], `url(#${clones[key]})`);
+    }
+
+    // inherited values are {v, s}: s is the scale they were written at, null if not written yet
+    function prep(el, st, mm, inh, skip) {
+      const s = Math.sqrt(Math.abs(mm[0] * mm[3] - mm[1] * mm[2]));
+      const attrs = {},
+        style = { ...st };
+      Object.entries(inh).forEach(([k, e]) => {
+        if (st[k] != null || el.hasAttribute(k)) return;
+        if (e.s == null || (LENGTHS.includes(k) && Math.abs(e.s - s) > 1e-6))
+          attrs[k] = e.v;
+      });
+      [...el.attributes].forEach((a) => {
+        if (!["transform", "style", ...skip].includes(a.name))
+          attrs[a.name] = a.value;
+      });
+      const both = (k) => style[k] ?? attrs[k];
+      if (both("vector-effect") !== "non-scaling-stroke")
+        for (const k of LENGTHS)
+          for (const o of [attrs, style]) {
+            if (o[k] == null || o[k].trim() === "none") continue;
+            const parts = o[k].trim().split(/[\s,]+/);
+            if (
+              !similar(mm) ||
+              !parts.every((p) =>
+                /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?(px)?$/i.test(p),
+              )
+            )
+              return null;
+            o[k] = parts.map((p) => fmt(parseFloat(p) * s)).join(" ");
+          }
+      for (const k of ["fill", "stroke"])
+        for (const o of [attrs, style])
+          if (o[k] && o[k].includes("url(")) {
+            const v = paint(o[k], mm);
+            if (v == null) return null;
+            o[k] = v;
+          }
+      const next = { ...inh };
+      INHERITED.forEach((k) => {
+        const v = st[k] ?? el.getAttribute(k);
+        if (v != null && v.trim() !== "inherit") next[k] = { v: v.trim(), s };
+        else if (next[k] && next[k].s == null) next[k] = { v: next[k].v, s };
+      });
+      return { attrs, style, s, both, next };
+    }
+
+    const attrStr = ({ attrs, style }) =>
+      Object.entries(attrs)
+        .map(([k, v]) => ` ${k}="${esc(v)}"`)
+        .join("") +
+      (Object.keys(style).length
+        ? ` style="${esc(
+            Object.entries(style)
+              .map(([k, v]) => `${k}:${v}`)
+              .join(";"),
+          )}"`
+        : "");
+
+    function bake(el, st, mm, inh) {
+      const segs = shapeSegs(el);
+      if (!segs || !segs.length) return null;
+      const p = prep(el, st, mm, inh, GEOMETRY[el.localName]);
+      if (!p || NO_BAKE.some((k) => has(p.both(k)) || has(inh[k]?.v)))
+        return null;
+      if (has(p.both("stroke") ?? inh.stroke?.v)) {
+        if (!similar(mm)) return null;
+        if (
+          p.both("stroke-width") == null &&
+          !inh["stroke-width"] &&
+          p.both("vector-effect") !== "non-scaling-stroke" &&
+          Math.abs(p.s - 1) > 1e-6
+        )
+          p.attrs["stroke-width"] = fmt(p.s);
+      }
+      return `<path${attrStr(p)} d="${pathData(transformSegs(segs, mm))}"/>`;
+    }
+
+    // left as it is, placed with a transform attribute
+    function keep(el, st, mm, inh) {
+      const c = el.cloneNode(true);
+      c.removeAttribute("transform");
+      if (mm.join() !== ID.join()) c.setAttribute("transform", matrix(mm));
+      Object.entries(inh).forEach(([k, e]) => {
+        if (st[k] != null || el.hasAttribute(k)) return;
+        if (e.s == null || (LENGTHS.includes(k) && Math.abs(e.s - 1) > 1e-6))
+          c.setAttribute(k, e.v);
+      });
+      return out(c);
+    }
+
+    function group(el, st, mm, inh) {
+      const tag = el.localName;
+      const vp = tag === "svg" ? viewport(el) : ID;
+      if (
+        !vp ||
+        ["clip-path", "mask", "filter"].some((k) =>
+          has(st[k] ?? el.getAttribute(k)),
+        )
+      )
+        return keep(el, st, mm, inh);
+      const g = mul(mm, vp);
+      const p = prep(
+        el,
+        st,
+        g,
+        inh,
+        tag === "svg"
+          ? ["x", "y", "width", "height", "viewBox", "preserveAspectRatio"]
+          : [],
+      );
+      if (!p) return keep(el, st, mm, inh);
+      // a nested <svg> in the source becomes a plain group
+      const name = tag === "svg" ? "g" : tag;
+      const kids = [...el.children].map((c) => walk(c, g, p.next)).join("");
+      return `<${name}${attrStr(p)}>${kids}</${name}>`;
+    }
+
+    function walk(el, mm, inh) {
+      const tag = el.localName;
+      if (tag === "defs" && !defsSeen) {
+        defsSeen = true;
+        const d = out(el);
+        return d.endsWith("/>")
+          ? d.slice(0, -2) + `>${TOKEN}</defs>`
+          : d.slice(0, -7) + TOKEN + "</defs>";
+      }
+      if (UNRENDERED.includes(tag)) return out(el);
+      const st = parseStyle(el.getAttribute("style"));
+      if ((st.display ?? el.getAttribute("display")) === "none") return out(el);
+      const own = mul(mm, parseTransform(el.getAttribute("transform")));
+      // stylesheet rules can set strokes we can't see, so the transform is kept instead
+      if (styled) return keep(el, st, own, inh);
+      if (CONTAINERS.includes(tag)) return group(el, st, own, inh);
+      if (GEOMETRY[tag]) {
+        const p = bake(el, st, own, inh);
+        if (p != null) return p;
+      }
+      return keep(el, st, own, inh);
+    }
+
+    const rst = parseStyle(icon.rootAttrs.style),
+      rget = (k) => rst[k] ?? icon.rootAttrs[k];
+    if (["clip-path", "mask", "filter"].some((k) => has(rget(k)))) return null;
+    // the root's inherited attributes go onto its children
+    const inh = {};
+    INHERITED.forEach((k) => {
+      const v = rget(k);
+      if (v != null && v.trim() !== "inherit")
+        inh[k] = { v: v.trim(), s: null };
+    });
+    let html = [...doc.documentElement.children]
+      .map((c) => walk(c, m, inh))
+      .join("");
+    const op = rget("opacity");
+    if (op != null && parseFloat(op) < 1)
+      html = `<g opacity="${esc(op)}">${html}</g>`;
+    if (!cloned.length) return html.replace(TOKEN, "");
+    return defsSeen
+      ? html.replace(TOKEN, cloned.join(""))
+      : `<defs>${cloned.join("")}</defs>${html}`;
+  }
+
   // ---------- building ----------
   function badgeMarkup(icon) {
     const b = icon.fit === "viewBox" ? icon.vb : icon.contentBox || icon.vb;
@@ -434,6 +1137,10 @@
     // bottom-right: artwork that isn't square hugs the box's right and bottom edges, like the built-in badges
     const x = state.align === "br" ? state.cx + S / 2 - w : state.cx - w / 2;
     const y = state.align === "br" ? state.cy + S / 2 - h : state.cy - h / 2;
+    try {
+      const flat = flatten(icon, [sc, 0, 0, sc, x - b[0] * sc, y - b[1] * sc]);
+      if (flat != null) return flat;
+    } catch (e) {}
     const attrs = Object.entries(icon.rootAttrs)
       .map(([k, v]) => ` ${k}="${esc(v)}"`)
       .join("");
