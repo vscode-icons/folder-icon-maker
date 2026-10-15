@@ -36,6 +36,7 @@
     cy: 20.5,
     align: "br",
     zoom: false,
+    specOpen: false,
   };
   let uid = 0;
   const $ = (id) => document.getElementById(id);
@@ -132,14 +133,29 @@
       const [h2, s2, l2] = rgb2hsl(...hex2rgb(hx));
       return hsl2hex(h2, s2, clamp(l2 + d, 0, 0.88));
     };
+    // lightening can move the folder toward a lighter badge, so the step shrinks until the badge stays readable,
+    // and when no visible step is left the closed folder goes darker to make room
+    const pair = (hx, d, lo) => {
+      const [h2, s2, l2] = rgb2hsl(...hex2rgb(hx));
+      const min = Math.min(1.8, contrast(hx, hex));
+      for (let L = l2; L >= lo; L -= 0.02) {
+        const c = hsl2hex(h2, s2, L);
+        for (let k = d; k >= 0.05; k -= 0.01) {
+          const o = lighter(c, k);
+          if (contrast(o, hex) >= min) return [c, o];
+        }
+      }
+      const c = hsl2hex(h2, s2, Math.min(l2, lo));
+      return [c, lighter(c, d)];
+    };
     // keep folders visible on the editor background: dark-theme folders not too dark, light-theme ones not too pale
     const floor = (hx, lo, hi) => {
       const [h2, s2, l2] = rgb2hsl(...hex2rgb(hx));
       return hsl2hex(h2, s2, clamp(l2, lo, hi));
     };
-    const dc = floor(fit(base, dir), 0.36, 0.8),
-      lc = floor(fit(l - 0.27, -1), 0.2, 0.55);
-    return { dc, do: lighter(dc, 0.13), lc, lo: lighter(lc, 0.1) };
+    const [dc, dO] = pair(floor(fit(base, dir), 0.36, 0.8), 0.13, 0.28),
+      [lc, lO] = pair(floor(fit(l - 0.27, -1), 0.2, 0.55), 0.1, 0.15);
+    return { dc, do: dO, lc, lo: lO };
   }
   // folder + opened colors for the theme this icon is made for
   function folderColors(icon) {
@@ -1207,19 +1223,20 @@
     renderSpecimen();
   }
 
-  // The big grid at the top shows the selected icon's closed folder (or the newest one).
+  // The big grid at the top shows the selected icon's closed or opened folder (or the newest one).
   function renderSpecimen() {
     const icon =
       state.icons.find((i) => i.id === state.focus) || state.icons.at(-1);
     const img = $("specImg");
     if (icon) {
-      const [closed] = outputs(icon);
-      img.setAttribute("href", dataUrl(closed.svg));
-      $("specName").textContent = closed.file;
+      const shown = outputs(icon)[state.specOpen ? 1 : 0];
+      img.setAttribute("href", dataUrl(shown.svg));
+      $("specName").textContent = shown.file;
     } else {
       img.removeAttribute("href");
       $("specName").textContent = "No folder yet";
     }
+    $("specGhost").setAttribute("d", state.specOpen ? OPENED : CLOSED);
     $("specGhost").style.display = icon ? "none" : "";
     document
       .querySelectorAll(".item")
@@ -1481,6 +1498,10 @@
   $("align").addEventListener("change", (e) => {
     state.align = e.target.value;
     render();
+  });
+  $("specShow").addEventListener("change", (e) => {
+    state.specOpen = e.target.value === "opened";
+    renderSpecimen();
   });
   $("zoom").addEventListener("change", (e) => {
     state.zoom = e.target.checked;
