@@ -1167,16 +1167,12 @@
     const c = icon.colors,
       badge = badgeMarkup(icon);
     const head = `<svg xmlns="http://www.w3.org/2000/svg"${icon.usesXlink ? ' xmlns:xlink="http://www.w3.org/1999/xlink"' : ""} viewBox="0 0 32 32">`;
-    const make = (title, fill, d) =>
-      `${head}<title>${title}</title><path fill="${fill}" d="${d}"/>${badge}</svg>`;
+    const make = (fill, d) =>
+      `${head}<path fill="${fill}" d="${d}"/>${badge}</svg>`;
     const base = prefix(icon) + (icon.name || "icon");
     return [
-      { file: `${base}.svg`, open: false, svg: make(base, c.c, CLOSED) },
-      {
-        file: `${base}_opened.svg`,
-        open: true,
-        svg: make(`${base}_opened`, c.o, OPENED),
-      },
+      { file: `${base}.svg`, open: false, svg: make(c.c, CLOSED) },
+      { file: `${base}_opened.svg`, open: true, svg: make(c.o, OPENED) },
     ];
   }
   const prefix = (icon) => (icon.light ? "folder_type_light_" : "folder_type_");
