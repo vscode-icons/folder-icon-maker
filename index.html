@@ -123,6 +123,17 @@
       </div>
 
       <figure class="specimen">
+        <div class="stage">
+        <div class="stage-bar">
+          <select
+            class="field"
+            id="specShow"
+            aria-label="Folder shown in the preview"
+          >
+            <option value="closed" selected>Closed folder</option>
+            <option value="opened">Opened folder</option>
+          </select>
+        </div>
         <svg
           class="sheet"
           viewBox="-3 -3 37 37"
@@ -171,6 +182,7 @@
             <path id="specCross" d="M19.5 20.5h2m-1-1v2" />
           </g>
         </svg>
+        </div>
         <figcaption>
           <code id="specName">No folder yet</code>
           <div class="ctl">

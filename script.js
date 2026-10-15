@@ -36,6 +36,7 @@
     cy: 20.5,
     align: "br",
     zoom: false,
+    specOpen: false,
   };
   let uid = 0;
   const $ = (id) => document.getElementById(id);
@@ -1226,19 +1227,20 @@
     renderSpecimen();
   }
 
-  // The big grid at the top shows the selected icon's closed folder (or the newest one).
+  // The big grid at the top shows the selected icon's closed or opened folder (or the newest one).
   function renderSpecimen() {
     const icon =
       state.icons.find((i) => i.id === state.focus) || state.icons.at(-1);
     const img = $("specImg");
     if (icon) {
-      const [closed] = outputs(icon);
-      img.setAttribute("href", dataUrl(closed.svg));
-      $("specName").textContent = closed.file;
+      const shown = outputs(icon)[state.specOpen ? 1 : 0];
+      img.setAttribute("href", dataUrl(shown.svg));
+      $("specName").textContent = shown.file;
     } else {
       img.removeAttribute("href");
       $("specName").textContent = "No folder yet";
     }
+    $("specGhost").setAttribute("d", state.specOpen ? OPENED : CLOSED);
     $("specGhost").style.display = icon ? "none" : "";
     document
       .querySelectorAll(".item")
@@ -1500,6 +1502,10 @@
   $("align").addEventListener("change", (e) => {
     state.align = e.target.value;
     render();
+  });
+  $("specShow").addEventListener("change", (e) => {
+    state.specOpen = e.target.value === "opened";
+    renderSpecimen();
   });
   $("zoom").addEventListener("change", (e) => {
     state.zoom = e.target.checked;

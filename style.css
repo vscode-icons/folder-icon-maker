@@ -272,6 +272,20 @@ input[type="checkbox"] {
   gap: 24px;
   align-items: start;
 }
+.stage {
+  position: relative;
+  min-width: 0;
+}
+/* sits in the empty top-left of the 32-unit grid, which starts 3 units into the -3..34 viewBox */
+.stage-bar {
+  position: absolute;
+  top: calc(3 / 37 * 100% + 8px);
+  left: calc(3 / 37 * 100% + 8px);
+}
+.stage-bar .field {
+  height: 30px;
+  font-size: 12px;
+}
 .sheet {
   display: block;
   width: 100%;
