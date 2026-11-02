@@ -1058,17 +1058,34 @@
       return `<path${attrStr(p)} d="${pathData(transformSegs(segs, mm))}"/>`;
     }
 
+    // ids that <use>, masks, clip paths, etc. point at
+    const refs = new Set();
+    for (const n of doc.querySelectorAll("*"))
+      for (const a of n.attributes) {
+        if (/^(xlink:)?href$/.test(a.name)) {
+          if (a.value.startsWith("#")) refs.add(a.value.slice(1));
+        } else
+          for (const r of a.value.matchAll(/url\(\s*['"]?#([^'")\s]+)/g))
+            refs.add(r[1]);
+      }
+
     // left as it is, placed with a transform attribute
-    function keep(el, st, mm, inh) {
+    // wrapped: its own transform stays and mm goes on a parent <g>, so a <use> of it still gets the original
+    function keep(el, st, mm, inh, wrapped = false) {
       const c = el.cloneNode(true);
-      c.removeAttribute("transform");
-      if (mm.join() !== ID.join()) c.setAttribute("transform", matrix(mm));
+      const moved = mm.join() !== ID.join();
+      if (!wrapped) {
+        c.removeAttribute("transform");
+        if (moved) c.setAttribute("transform", matrix(mm));
+      }
       Object.entries(inh).forEach(([k, e]) => {
         if (st[k] != null || el.hasAttribute(k)) return;
         if (e.s == null || (LENGTHS.includes(k) && Math.abs(e.s - 1) > 1e-6))
           c.setAttribute(k, e.v);
       });
-      return out(c);
+      return wrapped && moved
+        ? `<g transform="${matrix(mm)}">${out(c)}</g>`
+        : out(c);
     }
 
     function group(el, st, mm, inh) {
@@ -1110,6 +1127,8 @@
       if (UNRENDERED.includes(tag)) return out(el);
       const st = parseStyle(el.getAttribute("style"));
       if ((st.display ?? el.getAttribute("display")) === "none") return out(el);
+      // baking would also move what references it, which already sits in the transformed space
+      if (el.id && refs.has(el.id)) return keep(el, st, mm, inh, true);
       const own = mul(mm, parseTransform(el.getAttribute("transform")));
       // stylesheet rules can set strokes we can't see, so the transform is kept instead
       if (styled) return keep(el, st, own, inh);
