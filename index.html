@@ -124,64 +124,64 @@
 
       <figure class="specimen">
         <div class="stage">
-        <div class="stage-bar">
-          <select
-            class="field"
-            id="specShow"
-            aria-label="Folder shown in the preview"
+          <div class="stage-bar">
+            <select
+              class="field"
+              id="specShow"
+              aria-label="Folder shown in the preview"
+            >
+              <option value="closed" selected>Closed folder</option>
+              <option value="opened">Opened folder</option>
+            </select>
+          </div>
+          <svg
+            class="sheet"
+            viewBox="-3 -3 37 37"
+            role="img"
+            aria-labelledby="specName"
           >
-            <option value="closed" selected>Closed folder</option>
-            <option value="opened">Opened folder</option>
-          </select>
-        </div>
-        <svg
-          class="sheet"
-          viewBox="-3 -3 37 37"
-          role="img"
-          aria-labelledby="specName"
-        >
-          <defs>
-            <pattern
-              id="grid1"
-              width="1"
-              height="1"
-              patternUnits="userSpaceOnUse"
-            >
-              <path class="grid-fine" d="M1 0H0V1" />
-            </pattern>
-            <pattern
-              id="grid8"
-              width="8"
-              height="8"
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width="8" height="8" fill="url(#grid1)" />
-              <path class="grid-major" d="M8 0H0V8" />
-            </pattern>
-          </defs>
-          <rect class="grid-bg" width="32" height="32" />
-          <rect width="32" height="32" fill="url(#grid8)" />
-          <rect class="grid-edge" width="32" height="32" />
-          <g class="axis">
-            <text x="0" y="-1">0</text>
-            <text x="16" y="-1">16</text>
-            <text x="32" y="-1">32</text>
-            <text x="-1" y="0.4" class="v">0</text>
-            <text x="-1" y="16.4" class="v">16</text>
-            <text x="-1" y="32.4" class="v">32</text>
-          </g>
-          <path
-            id="specGhost"
-            class="ghost-folder"
-            d="M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 4.2h-8.2l1.1-2.1h7.1z"
-          />
-          <image id="specImg" width="32" height="32" />
-          <g class="guides">
-            <rect id="miniBox" x="10" y="10" width="21" height="21" />
-            <circle id="specCircle" cx="20.5" cy="20.5" r="10.5" />
-            <path id="specCross" d="M19.5 20.5h2m-1-1v2" />
-          </g>
-        </svg>
+            <defs>
+              <pattern
+                id="grid1"
+                width="1"
+                height="1"
+                patternUnits="userSpaceOnUse"
+              >
+                <path class="grid-fine" d="M1 0H0V1" />
+              </pattern>
+              <pattern
+                id="grid8"
+                width="8"
+                height="8"
+                patternUnits="userSpaceOnUse"
+              >
+                <rect width="8" height="8" fill="url(#grid1)" />
+                <path class="grid-major" d="M8 0H0V8" />
+              </pattern>
+            </defs>
+            <rect class="grid-bg" width="32" height="32" />
+            <rect width="32" height="32" fill="url(#grid8)" />
+            <rect class="grid-edge" width="32" height="32" />
+            <g class="axis">
+              <text x="0" y="-1">0</text>
+              <text x="16" y="-1">16</text>
+              <text x="32" y="-1">32</text>
+              <text x="-1" y="0.4" class="v">0</text>
+              <text x="-1" y="16.4" class="v">16</text>
+              <text x="-1" y="32.4" class="v">32</text>
+            </g>
+            <path
+              id="specGhost"
+              class="ghost-folder"
+              d="M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 4.2h-8.2l1.1-2.1h7.1z"
+            />
+            <image id="specImg" width="32" height="32" />
+            <g class="guides">
+              <rect id="miniBox" x="10" y="10" width="21" height="21" />
+              <circle id="specCircle" cx="20.5" cy="20.5" r="10.5" />
+              <path id="specCross" d="M19.5 20.5h2m-1-1v2" />
+            </g>
+          </svg>
         </div>
         <figcaption>
           <code id="specName">No folder yet</code>

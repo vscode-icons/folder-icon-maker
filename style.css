@@ -3,11 +3,11 @@
   Magenta only marks guides, focus and the selected icon. Nothing else is colored.
 */
 :root {
-  --sans: "Bricolage Grotesque", system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --sans: 'Bricolage Grotesque', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --folder: #c09553; /* vscode-icons default folder */
 }
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   --paper: #e9edf1;
   --sheet: #f6f8fa;
   --ink: #17202b;
@@ -18,7 +18,7 @@
   --danger: #b3261e;
   color-scheme: light;
 }
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --paper: #1a2029;
   --sheet: #212833;
   --ink: #e4e9ee;
@@ -40,7 +40,7 @@ body {
   font:
     400 14px/1.55 var(--sans),
     sans-serif;
-  font-variation-settings: "wdth" 100;
+  font-variation-settings: 'wdth' 100;
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -119,8 +119,8 @@ h1 {
   line-height: 1;
   font-weight: 650;
   font-variation-settings:
-    "wdth" 88,
-    "opsz" 96;
+    'wdth' 88,
+    'opsz' 96;
   letter-spacing: -0.015em;
   max-width: 12ch;
   text-wrap: balance;
@@ -195,11 +195,11 @@ h1 {
 .linkbtn:hover {
   text-decoration-color: currentColor;
 }
-input[type="file"] {
+input[type='file'] {
   display: none;
 }
-input[type="range"],
-input[type="checkbox"] {
+input[type='range'],
+input[type='checkbox'] {
   accent-color: var(--guide);
 }
 .row {
@@ -356,7 +356,7 @@ input[type="checkbox"] {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
-.ctl input[type="range"],
+.ctl input[type='range'],
 .ctl select {
   grid-column: 1 / -1;
   width: 100%;
@@ -396,8 +396,8 @@ h2 {
   margin: 0;
   font-size: 24px;
   font-variation-settings:
-    "wdth" 88,
-    "opsz" 48;
+    'wdth' 88,
+    'opsz' 48;
   font-weight: 650;
 }
 .actions {
@@ -421,7 +421,7 @@ h2 {
   border-bottom: 1px solid var(--rule);
 }
 .item.is-focus::before {
-  content: "";
+  content: '';
   position: absolute;
   left: -14px;
   top: 20px;
@@ -515,7 +515,7 @@ h2 {
   height: 16px;
   border-radius: 3px;
 }
-.swatch input[type="color"] {
+.swatch input[type='color'] {
   width: 30px;
   height: 22px;
   padding: 2px;
@@ -524,14 +524,14 @@ h2 {
   border-radius: 4px;
   cursor: pointer;
 }
-.swatch input[type="color"]::-webkit-color-swatch-wrapper {
+.swatch input[type='color']::-webkit-color-swatch-wrapper {
   padding: 0;
 }
-.swatch input[type="color"]::-webkit-color-swatch {
+.swatch input[type='color']::-webkit-color-swatch {
   border: 0;
   border-radius: 2px;
 }
-.swatch input[type="color"]::-moz-color-swatch {
+.swatch input[type='color']::-moz-color-swatch {
   border: 0;
   border-radius: 2px;
 }
@@ -616,7 +616,7 @@ details.code pre {
   border-radius: 6px;
   overflow: hidden;
   font:
-    13px/22px "Segoe UI",
+    13px/22px 'Segoe UI',
     system-ui,
     sans-serif;
 }
