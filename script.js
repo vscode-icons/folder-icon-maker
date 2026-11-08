@@ -949,9 +949,52 @@
     const byId = (id) => doc.querySelector(`[id="${CSS.escape(id)}"]`);
     const TOKEN = "\u0000clones\u0000";
     const clones = {},
-      cloned = [];
+      cloned = [],
+      cloneOf = {};
     let defsSeen = false;
     const styled = !!doc.querySelector("style");
+
+    // a gradient's coordinates with mm applied, or null if any of them can't be moved by hand
+    // (a similarity keeps linear gradients' angles and radial gradients' circles, so this is exact)
+    function moveCoords(el, mm) {
+      const get = (k) => {
+        for (let cur = el, n = 0; cur && n < 10; n++) {
+          const v = cur.getAttribute(k);
+          if (v != null) return v.trim();
+          const h = cur.getAttribute("href") || cur.getAttribute("xlink:href");
+          cur = h && h.startsWith("#") ? byId(h.slice(1)) : null;
+        }
+        return null;
+      };
+      const num = (v) =>
+        /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(v) ? parseFloat(v) : NaN;
+      const linear = el.localName === "linearGradient";
+      // points with no default here would fall back to percentages, which we can't move
+      const pairs = linear
+        ? [["x1", "y1", true], ["x2", "y2", true]]
+        : [["cx", "cy", true], ["fx", "fy", false]];
+      const s = Math.sqrt(Math.abs(mm[0] * mm[3] - mm[1] * mm[2]));
+      const res = {};
+      for (const [kx, ky, need] of pairs) {
+        const vx = get(kx),
+          vy = get(ky);
+        if (vx == null && vy == null && !need) continue;
+        const x = num(vx ?? ""),
+          y = num(vy ?? "");
+        if (isNaN(x) || isNaN(y)) return null;
+        res[kx] = fmt(mm[0] * x + mm[2] * y + mm[4]);
+        res[ky] = fmt(mm[1] * x + mm[3] * y + mm[5]);
+      }
+      if (!linear)
+        for (const [k, need] of [["r", true], ["fr", false]]) {
+          const v = get(k);
+          if (v == null && !need) continue;
+          const n = num(v ?? "");
+          if (isNaN(n)) return null;
+          res[k] = fmt(n * s);
+        }
+      return res;
+    }
 
     // copy userSpaceOnUse gradients with the transform applied
     function paint(v, mm) {
@@ -973,10 +1016,14 @@
       if (!clones[key]) {
         const c = el.cloneNode(true);
         clones[key] = c.id = `${r[1]}-f${cloned.length + 1}`;
-        c.setAttribute(
-          "gradientTransform",
-          matrix(mul(mm, parseTransform(gt))),
-        );
+        (cloneOf[r[1]] ||= []).push(c.id);
+        const pts = gt == null && similar(mm) && moveCoords(el, mm);
+        if (pts) Object.entries(pts).forEach(([k, v]) => c.setAttribute(k, v));
+        else
+          c.setAttribute(
+            "gradientTransform",
+            matrix(mul(mm, parseTransform(gt))),
+          );
         cloned.push(out(c));
       }
       return v.replace(r[0], `url(#${clones[key]})`);
@@ -1059,15 +1106,48 @@
     }
 
     // ids that <use>, masks, clip paths, etc. point at
-    const refs = new Set();
-    for (const n of doc.querySelectorAll("*"))
-      for (const a of n.attributes) {
-        if (/^(xlink:)?href$/.test(a.name)) {
-          if (a.value.startsWith("#")) refs.add(a.value.slice(1));
-        } else
-          for (const r of a.value.matchAll(/url\(\s*['"]?#([^'")\s]+)/g))
-            refs.add(r[1]);
+    const refsIn = (root) => {
+      const set = new Set();
+      for (const n of root.querySelectorAll("*"))
+        for (const a of n.attributes) {
+          if (/^(xlink:)?href$/.test(a.name)) {
+            if (a.value.startsWith("#")) set.add(a.value.slice(1));
+          } else
+            for (const r of a.value.matchAll(/url\(\s*['"]?#([^'")\s]+)/g))
+              set.add(r[1]);
+        }
+      return set;
+    };
+    const refs = refsIn(doc);
+
+    // gradients that were copied with a transform and are no longer used by anything
+    function prune(html) {
+      const d = new DOMParser().parseFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">${html}</svg>`,
+        "image/svg+xml",
+      );
+      if (d.querySelector("parsererror")) return html;
+      const used = refsIn(d);
+      const find = (id) => d.querySelector(`[id="${CSS.escape(id)}"]`);
+      let removed = false;
+      for (const [id, cs] of Object.entries(cloneOf)) {
+        const el = used.has(id) ? null : find(id);
+        if (!el || !/Gradient$/.test(el.localName)) continue;
+        el.remove();
+        removed = true;
+        // a single copy takes the original's id back
+        if (cs.length !== 1) continue;
+        const c = find(cs[0]);
+        if (!c) continue;
+        c.id = id;
+        const from = `url(#${cs[0]})`;
+        for (const n of d.querySelectorAll("*"))
+          for (const a of [...n.attributes])
+            if (a.value.includes(from))
+              n.setAttribute(a.name, a.value.split(from).join(`url(#${id})`));
       }
+      return removed ? [...d.documentElement.childNodes].map(out).join("") : html;
+    }
 
     // left as it is, placed with a transform attribute
     // wrapped: its own transform stays and mm goes on a parent <g>, so a <use> of it still gets the original
@@ -1157,9 +1237,11 @@
     if (op != null && parseFloat(op) < 1)
       html = `<g opacity="${esc(op)}">${html}</g>`;
     if (!cloned.length) return html.replace(TOKEN, "");
-    return defsSeen
-      ? html.replace(TOKEN, cloned.join(""))
-      : `<defs>${cloned.join("")}</defs>${html}`;
+    return prune(
+      defsSeen
+        ? html.replace(TOKEN, cloned.join(""))
+        : `<defs>${cloned.join("")}</defs>${html}`,
+    );
   }
 
   // ---------- building ----------
