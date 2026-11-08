@@ -1,50 +1,40 @@
-# vscode-icons folder maker
+# vscode-icons folder icon maker
 
-Make [vscode-icons](https://github.com/vscode-icons/vscode-icons) folders from your file icons: closed and opened, for dark and light themes.
+A browser tool from [vscode-icons](https://github.com/vscode-icons/vscode-icons) for making folder icons out of file icons. Give it a `file_type_*.svg` and it creates the matching `folder_type_*.svg` and `folder_type_*_opened.svg`, ready to add to the vscode-icons repo.
 
-Each icon becomes a badge in the standard folder-badge spot, and the folder color is derived from the icon's main color so the badge stays readable.
+The file icon is placed as a badge in the same spot as the built-in folder badges. The folder color comes from the icon's main color, so the badge stays readable on both the closed and opened folder.
 
-## Usage
+**[Open the folder icon maker](https://vscode-icons.github.io/folder-icon-maker/)**. It runs entirely in your browser, and your icons are never uploaded.
 
-No build step. Open `index.html` in a browser, or serve the folder with any static server:
-
-```sh
-npx serve .
-```
-
-Then:
-
-1. Drop file icon SVGs on the drop zone, click **Choose files**, paste SVG code, or click **Try a sample**.
-2. Rename the folder if needed (the `folder_type_` prefix is added for you).
-3. Adjust colors, badge fit, and placement. The explorer preview shows how the folders look in dark and light sidebars.
-4. Copy or download each file, or use **Download all (.zip)**.
+![The folder icon maker: a drop zone for file icon SVGs, a 32×32 grid showing where the badge goes on the folder, and controls for badge size, position, and alignment](docs/screenshot.png)
 
 ## Output
 
-Each input icon gives two files, closed and opened:
+Each input icon gives two files, closed and opened, named the way vscode-icons expects:
 
 | Input                      | Output                                                            |
 | -------------------------- | ----------------------------------------------------------------- |
 | `file_type_name.svg`       | `folder_type_name.svg`, `folder_type_name_opened.svg`             |
 | `file_type_light_name.svg` | `folder_type_light_name.svg`, `folder_type_light_name_opened.svg` |
 
-The light theme version is a separate input icon. Files named `file_type_light_*` (or `folder_type_light_*`) are detected as light automatically, and each icon has a **Dark theme / Light theme** picker for anything else, such as pasted code. Light icons get a folder color tuned for light sidebars.
+Files named `file_type_light_*` are made into light theme folders automatically. For other icons, pick **Light theme** in the icon's theme picker.
 
-Previews always show both dark and light backgrounds. In the explorer preview, each theme uses its own version of a folder and falls back to the other one if it's missing.
+## Adding the icons to vscode-icons
 
-## Options
+The files this tool makes are ready to go into a pull request on [vscode-icons/vscode-icons](https://github.com/vscode-icons/vscode-icons):
 
-- **Badge placement**: size, center x/y, and alignment (bottom right of the box, or centered). The default is a 21×21 box from 10 to 31 on the 32×32 canvas, matching the built-in vscode-icons badges.
-- **Fit**: _Fit to artwork_ sizes the badge from the visible pixels; _Fit to viewBox_ uses the SVG's own viewBox.
-- **Colors**: the folder and opened colors can be overridden; **Reset colors** restores the derived ones.
+1. Copy the downloaded SVGs into the `icons/` folder.
+2. Add an entry for the folder in `src/iconsManifest/supportedFolders.ts`, listing the folder names it should match. Set `light: true` if you also made `folder_type_light_*` files.
+3. Check the icons in VS Code, then open a pull request.
 
-## Notes
+Read the [vscode-icons contribution guide](https://github.com/vscode-icons/vscode-icons/wiki/Contributing) before opening the pull request.
 
-- Uploaded SVGs are sanitized (scripts, event handlers, and `foreignObject` are removed) and their IDs are prefixed so gradients and clip paths don't clash.
-- Everything runs locally in the browser. The only external resources are JSZip (from cdnjs) and the JetBrains Mono font.
+## Contributing
 
-## Files
+Bug reports and pull requests are welcome in [vscode-icons/folder-icon-maker](https://github.com/vscode-icons/folder-icon-maker). Requests for new icons go to the main [vscode-icons](https://github.com/vscode-icons/vscode-icons) repo.
 
-- `index.html` – page layout
-- `style.css` – styles, with dark and light themes
-- `script.js` – parsing, color derivation, SVG building, and export
+There is no build step. To run the tool locally, open `index.html` in a browser, or serve the folder with any static server:
+
+```sh
+npx serve .
+```
