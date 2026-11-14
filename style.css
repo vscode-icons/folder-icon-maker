@@ -463,7 +463,6 @@ h2 {
 }
 /* long names end in an ellipsis; the full name is in the title */
 .top .src,
-.file code,
 .erow .nm {
   overflow: hidden;
   white-space: nowrap;
@@ -574,9 +573,21 @@ h2 {
   padding: 5px 0;
   border-top: 1px dotted var(--rule-strong);
 }
-.file code {
-  flex: 1;
+.fname {
+  display: flex;
   min-width: 0;
+  white-space: nowrap;
+}
+.fname span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file .fname {
+  flex: 1;
+}
+details.code .fname {
+  margin-top: 12px;
+  font-size: 12px;
 }
 .file .size {
   font-size: 12px;

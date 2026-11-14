@@ -1447,6 +1447,11 @@
     ];
   }
   const prefix = icon => (icon.light ? 'folder_type_light_' : 'folder_type_');
+  // a long name is cut before its ending, so .svg and _opened.svg stay readable
+  const fileName = o => {
+    const end = o.open ? '_opened.svg' : '.svg';
+    return `<code class="fname" title="${esc(o.file)}"><span>${esc(o.file.slice(0, -end.length))}</span>${end}</code>`;
+  };
 
   // ---------- adding ----------
   async function addIcon(text, filename) {
@@ -1563,12 +1568,12 @@
               (
                 o,
                 i,
-              ) => `<div class="file"><code title="${esc(o.file)}">${esc(o.file)}</code><span class="size">${new Blob([o.svg]).size} B</span>
+              ) => `<div class="file">${fileName(o)}<span class="size">${new Blob([o.svg]).size} B</span>
             <button type="button" class="btn small" data-act="copy" data-i="${i}">Copy</button>
             <button type="button" class="btn small" data-act="save" data-i="${i}">Download</button></div>`,
             )
             .join('')}
-          <details class="code"><summary>Show code</summary>${outs.map(o => `<pre aria-label="${o.file}">${esc(o.svg)}</pre>`).join('')}</details>
+          <details class="code"><summary>Show code</summary>${outs.map(o => `${fileName(o)}<pre aria-label="${esc(o.file)}">${esc(o.svg)}</pre>`).join('')}</details>
         </div>
       </div>`;
     return el;
