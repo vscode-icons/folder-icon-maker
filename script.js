@@ -195,6 +195,156 @@
     walk(root);
   }
 
+  // split on sep, ignoring it inside quotes and parentheses
+  function splitTop(s, sep) {
+    const out = [];
+    let depth = 0,
+      q = null,
+      start = 0;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (q) {
+        if (c === '\\') i++;
+        else if (c === q) q = null;
+      } else if (c === '"' || c === "'") q = c;
+      else if (c === '(' || c === '[') depth++;
+      else if (c === ')' || c === ']') depth--;
+      else if (c === sep && !depth) {
+        out.push(s.slice(start, i));
+        start = i + 1;
+      }
+    }
+    out.push(s.slice(start));
+    return out;
+  }
+
+  // [ids, classes/attributes/pseudo-classes, types] as one comparable number
+  function specificity(sel) {
+    const s = sel.replace(/"[^"]*"|'[^']*'/g, '');
+    const noAttr = s.replace(/\[[^\]]*\]/g, '[]');
+    const ids = (noAttr.match(/#[\w-]+/g) || []).length;
+    const cls = (noAttr.match(/\.[\w-]+|\[\]|(^|[^:]):[\w-]+/g) || []).length;
+    const types =
+      (noAttr.match(/(^|[\s>+~(,])[a-z][\w-]*/gi) || []).length +
+      (noAttr.match(/::[\w-]+/g) || []).length;
+    return ids * 1e6 + cls * 1e3 + types;
+  }
+
+  // Move <style> rules onto the elements they match as style attributes.
+  // Left in place, rules like `path { fill: none }` would also hit the folder shape and the page itself.
+  function inlineStyles(root) {
+    const sheets = [...root.querySelectorAll('style')];
+    if (!sheets.length) return;
+    const rules = [],
+      rest = [];
+    let order = 0;
+    for (const sheet of sheets) {
+      const css = sheet.textContent
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/<!--|-->/g, '');
+      let i = 0;
+      while (i < css.length) {
+        const open = css.indexOf('{', i);
+        if (open < 0) {
+          if (css.slice(i).trim()) rest.push(css.slice(i).trim());
+          break;
+        }
+        let depth = 1,
+          j = open + 1;
+        for (; j < css.length && depth; j++)
+          if (css[j] === '{') depth++;
+          else if (css[j] === '}') depth--;
+        let head = css.slice(i, open).trim();
+        // statements like @import or @charset end with ; before the next rule
+        const semi = head.lastIndexOf(';');
+        if (semi >= 0) {
+          rest.push(head.slice(0, semi + 1).trim());
+          head = head.slice(semi + 1).trim();
+        }
+        const block = css.slice(open + 1, j - 1);
+        i = j;
+        // @media, @font-face, @keyframes and the like stay in a <style>
+        if (head.startsWith('@')) {
+          rest.push(`${head}{${block}}`);
+          continue;
+        }
+        const decls = [];
+        for (const d of splitTop(block, ';')) {
+          const c = d.indexOf(':');
+          if (c <= 0) continue;
+          let v = d.slice(c + 1).trim();
+          const important = /!\s*important\s*$/i.test(v);
+          if (important) v = v.replace(/\s*!\s*important\s*$/i, '');
+          if (v) decls.push([d.slice(0, c).trim().toLowerCase(), v, important]);
+        }
+        if (!decls.length) continue;
+        for (const sel of splitTop(head, ',')) {
+          const s = sel.trim();
+          if (!s) continue;
+          // states and pseudo-elements never apply to a static icon
+          if (
+            /::|:(hover|focus|active|visited|link|target|focus-within|focus-visible)\b/i.test(
+              s,
+            )
+          )
+            continue;
+          rules.push({ sel: s, spec: specificity(s), order: order++, decls });
+        }
+      }
+    }
+    // later and more specific rules win, as in the cascade
+    rules.sort((a, b) => a.spec - b.spec || a.order - b.order);
+    const matched = new Map();
+    for (const r of rules) {
+      let els;
+      try {
+        els = [
+          ...(root.matches(r.sel) ? [root] : []),
+          ...root.querySelectorAll(r.sel),
+        ];
+      } catch (e) {
+        continue;
+      }
+      for (const el of els) {
+        if (!matched.has(el)) matched.set(el, []);
+        matched.get(el).push(r.decls);
+      }
+    }
+    for (const [el, list] of matched) {
+      const own = splitTop(el.getAttribute('style') || '', ';')
+        .map(d => {
+          const c = d.indexOf(':');
+          if (c <= 0) return null;
+          const v = d.slice(c + 1).trim();
+          return [
+            d.slice(0, c).trim().toLowerCase(),
+            v.replace(/\s*!\s*important\s*$/i, ''),
+            /!\s*important\s*$/i.test(v),
+          ];
+        })
+        .filter(Boolean);
+      const flat = list.flat();
+      const res = {};
+      // normal rules, then the element's own style, then !important rules, then its own !important
+      for (const [imp, src] of [
+        [false, flat],
+        [false, own],
+        [true, flat],
+        [true, own],
+      ])
+        for (const [k, v, i] of src) if (i === imp) res[k] = v;
+      el.setAttribute(
+        'style',
+        Object.entries(res)
+          .map(([k, v]) => `${k}:${v}`)
+          .join(';'),
+      );
+    }
+    sheets.slice(1).forEach(s => s.remove());
+    if (rest.length) sheets[0].textContent = rest.join('\n');
+    else sheets[0].remove();
+  }
+
   function prefixIds(root, prefix) {
     const map = {};
     root.querySelectorAll('[id]').forEach(el => {
@@ -235,6 +385,7 @@
     )
       throw new Error('This file is not a valid SVG.');
     sanitize(root);
+    inlineStyles(root);
     const id = ++uid;
     prefixIds(root, 'i' + id + '-');
     let vb = (root.getAttribute('viewBox') || '')
