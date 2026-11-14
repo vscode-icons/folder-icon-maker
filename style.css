@@ -445,6 +445,7 @@ h2 {
 }
 .meta {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   min-width: 0;
 }
@@ -456,8 +457,17 @@ h2 {
 }
 .top .src {
   flex-basis: 100%;
+  min-width: 0;
   font-size: 12px;
   color: var(--graphite);
+}
+/* long names end in an ellipsis; the full name is in the title */
+.top .src,
+.file code,
+.erow .nm {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .namebox {
   display: flex;
@@ -559,15 +569,14 @@ h2 {
 
 .file {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 5px 0;
   border-top: 1px dotted var(--rule-strong);
 }
 .file code {
-  margin-right: auto;
-  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
 }
 .file .size {
   font-size: 12px;
@@ -653,8 +662,12 @@ details.code pre {
   text-align: center;
 }
 .erow img {
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
+}
+.erow .nm {
+  min-width: 0;
 }
 .erow.child {
   padding-left: 38px;

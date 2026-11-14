@@ -1546,7 +1546,7 @@
             <option value="viewBox"${icon.fit === 'viewBox' ? ' selected' : ''}>Fit to viewBox</option>
           </select>
           <button type="button" class="btn small remove" data-act="remove">Remove</button>
-          <span class="src">From ${esc(icon.src)}</span>
+          <span class="src" title="${esc(icon.src)}">From ${esc(icon.src)}</span>
         </div>
         <div class="colors">
           <span class="swatch"><span class="chip" style="background:${icon.main}"></span>Main color <b>${icon.main}</b></span>
@@ -1563,7 +1563,7 @@
               (
                 o,
                 i,
-              ) => `<div class="file"><code>${o.file}</code><span class="size">${new Blob([o.svg]).size} B</span>
+              ) => `<div class="file"><code title="${esc(o.file)}">${esc(o.file)}</code><span class="size">${new Blob([o.svg]).size} B</span>
             <button type="button" class="btn small" data-act="copy" data-i="${i}">Copy</button>
             <button type="button" class="btn small" data-act="save" data-i="${i}">Download</button></div>`,
             )
@@ -1585,8 +1585,9 @@
               const icon =
                 same.find(i => i.light === (theme === 'light')) || same[0];
               const [closed, opened] = outputs(icon);
-              return `<div class="erow"><span class="tw">›</span><img src="${dataUrl(closed.svg)}" alt="">${esc(icon.name)}</div>
-        <div class="erow"><span class="tw">⌄</span><img src="${dataUrl(opened.svg)}" alt="">${esc(icon.name)}</div>
+              const nm = `<span class="nm" title="${esc(icon.name)}">${esc(icon.name)}</span>`;
+              return `<div class="erow"><span class="tw">›</span><img src="${dataUrl(closed.svg)}" alt="">${nm}</div>
+        <div class="erow"><span class="tw">⌄</span><img src="${dataUrl(opened.svg)}" alt="">${nm}</div>
         <div class="erow child"><img src="${dataUrl(DEFAULT_FILE)}" alt="">index.ts</div>`;
             })
             .join('')
