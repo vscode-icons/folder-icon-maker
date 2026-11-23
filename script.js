@@ -674,7 +674,8 @@
     Math.abs(m[2]) <= tol(m) &&
     m[0] > 0 &&
     m[3] > 0;
-  const matrix = m => `matrix(${m.map(n => String(+n.toFixed(6))).join(' ')})`;
+  const matrix = m =>
+    `matrix(${m.map(n => String(+n.toFixed(6)).replace(/^(-?)0\./, '$1.')).join(' ')})`;
   const has = v => v != null && v.trim() !== 'none';
 
   function parseTransform(t) {
@@ -1424,13 +1425,19 @@
     // bottom-right: artwork that isn't square hugs the box's right and bottom edges, like the built-in badges
     const x = state.align === 'br' ? state.cx + S / 2 - w : state.cx - w / 2;
     const y = state.align === 'br' ? state.cy + S / 2 - h : state.cy - h / 2;
-    try {
-      const flat = flatten(icon, [sc, 0, 0, sc, x - b[0] * sc, y - b[1] * sc]);
-      if (flat != null) return flat;
-    } catch (e) {}
+    const m = [sc, 0, 0, sc, x - b[0] * sc, y - b[1] * sc];
     const attrs = Object.entries(icon.rootAttrs)
       .map(([k, v]) => ` ${k}="${esc(v)}"`)
       .join('');
+    try {
+      const flat = flatten(icon, m);
+      if (flat != null) {
+        // Baking the scale into the badge's numbers can make them longer (a2 2 becomes a1.487 1.487),
+        // so the untouched badge under one transformed group is used when that comes out shorter.
+        const wrapped = `<g transform="${matrix(m)}"${attrs}>${icon.inner}</g>`;
+        return wrapped.length < flat.length ? wrapped : flat;
+      }
+    } catch (e) {}
     return `<svg x="${fmt(x)}" y="${fmt(y)}" width="${fmt(w)}" height="${fmt(h)}" viewBox="${b.map(fmt).join(' ')}"${attrs}>${icon.inner}</svg>`;
   }
 
