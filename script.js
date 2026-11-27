@@ -1,8 +1,13 @@
 (() => {
   const CLOSED =
     'M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 4.2h-8.2l1.1-2.1h7.1z';
-  const OPENED =
-    'M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 18.7H6.6V11.8h20.8zm0-14.5h-8.2l1.1-2.1h7.1zM25.7 13.7H.5l3.8 12.8h25.2z';
+  // Two paths, as in default_folder_opened.svg: vscode-icons' folder lint takes the first
+  // two elements as the folder, so one merged path would cut off part of the badge
+  const OPENED_PATHS = [
+    'M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21zm0 18.7H6.6V11.8h20.8zm0-14.5h-8.2l1.1-2.1h7.1z',
+    'M25.7 13.7H.5l3.8 12.8h25.2z',
+  ];
+  const OPENED = OPENED_PATHS.join('');
   const ROOT_ATTRS = [
     'fill',
     'fill-opacity',
@@ -1445,12 +1450,12 @@
     const c = icon.colors,
       badge = badgeMarkup(icon);
     const head = `<svg xmlns="http://www.w3.org/2000/svg"${icon.usesXlink ? ' xmlns:xlink="http://www.w3.org/1999/xlink"' : ''} viewBox="0 0 32 32">`;
-    const make = (fill, d) =>
-      `${head}<path fill="${fill}" d="${d}"/>${badge}</svg>`;
+    const make = (fill, paths) =>
+      `${head}${paths.map(d => `<path fill="${fill}" d="${d}"/>`).join('')}${badge}</svg>`;
     const base = prefix(icon) + (icon.name || 'icon');
     return [
-      { file: `${base}.svg`, open: false, svg: make(c.c, CLOSED) },
-      { file: `${base}_opened.svg`, open: true, svg: make(c.o, OPENED) },
+      { file: `${base}.svg`, open: false, svg: make(c.c, [CLOSED]) },
+      { file: `${base}_opened.svg`, open: true, svg: make(c.o, OPENED_PATHS) },
     ];
   }
   const prefix = icon => (icon.light ? 'folder_type_light_' : 'folder_type_');
