@@ -116,14 +116,17 @@ textarea {
 h1 {
   margin: 0 0 18px;
   font-size: 56px;
-  line-height: 1;
-  font-weight: 650;
+  line-height: 1.05;
+  font-weight: 620;
   font-variation-settings:
-    'wdth' 88,
+    'wdth' 94,
     'opsz' 96;
-  letter-spacing: -0.015em;
-  max-width: 12ch;
+  letter-spacing: -0.01em;
+  max-width: 17ch;
   text-wrap: balance;
+}
+.nowrap {
+  white-space: nowrap;
 }
 .lede {
   margin: 0 0 28px;
